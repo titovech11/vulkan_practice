@@ -1,10 +1,11 @@
-#include "engine.h"
+#include "app.h"
 
 int main() {
 
-	Engine* graphicsEngine = new Engine();
+	App* curApp = new App(640, 480, "vulkan wnd", true);
 
-	delete graphicsEngine;
+	curApp->run();
+	delete curApp;
 
 	return 0;
 }
