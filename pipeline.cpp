@@ -1,6 +1,6 @@
 #include "pipeline.h"
 #include "shader.h"
-
+#include "mesh.h"
 
 vk::PipelineLayout vkInit::make_pipeline_layout(const vk::Device& device, const bool debug) {
 
@@ -70,10 +70,15 @@ vkInit::GraphicsPipelineOutBundle vkInit::create_graphics_pipeline(const Graphic
 
 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
 
+	vk::VertexInputBindingDescription bindingDescriptions = vkMesh::getPosColorBindingDescription();
+	std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions = vkMesh::getPosColorAttributeDescription();
+
 	vk::PipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.flags = vk::PipelineVertexInputStateCreateFlags();
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescriptions;
+	vertexInputInfo.vertexAttributeDescriptionCount = 2;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};

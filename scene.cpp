@@ -5,15 +5,25 @@
 
 Scene::Scene() {
 
-    auto start = std::chrono::system_clock::now();
-    auto end = std::chrono::system_clock::now();
+	float x = -0.6f;
+	for (float y = -1.0f; y < 1.0f; y += 0.2f) {
 
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+		trianglePositions.push_back(glm::vec3(x, y, 0.0f));
 
-	for (float x = -1.0f; x < 1.0f; x += 0.4f) {
-		for (float y = -1.0f; y < 1.0f; y += 0.4f) {
-			trianglePositions.push_back(glm::vec3(x, y, 0.0f));
-		}
 	}
+
+	x = 0.0f;
+	for (float y = -1.0f; y < 1.0f; y += 0.2f) {
+
+		squarePositions.push_back(glm::vec3(x, y, 0.0f));
+
+	}
+
+	x = 0.6f;
+	for (float y = -1.0f; y < 1.0f; y += 0.2f) {
+
+		starPositions.push_back(glm::vec3(x, y, 0.0f));
+
+	}
+	//trianglePositions.push_back(glm::vec3(0, 0, 0.0f));
 }

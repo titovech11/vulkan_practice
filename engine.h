@@ -2,6 +2,7 @@
 #include "config.h"
 #include "frame.h"
 #include "scene.h"
+#include "vertex_menagerie.h"
 
 class Engine {
 
@@ -39,6 +40,7 @@ private:
 
 	int maxFramesInFLight, frameNumber;
 
+	VertexMenagerie* meshes;
 
 	int width_;
 	int height_;
@@ -55,6 +57,9 @@ private:
 	void finalize_setup();
 	void make_framebuffers();
 	void make_frame_sync_objects();
+
+	void make_assets();
+	void prepare_scene(const vk::CommandBuffer& commandBuffer);
 
 	void record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex, Scene* scene);
 

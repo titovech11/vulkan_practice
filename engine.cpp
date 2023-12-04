@@ -27,6 +27,8 @@ Engine::Engine(int width, int height, GLFWwindow* window, bool debug) {
 	make_pipeline();
 
 	finalize_setup();
+
+	make_assets();
 }
 
 void Engine::make_instance()
@@ -167,14 +169,65 @@ void Engine::record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32
 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
+	prepare_scene(commandBuffer);
+	//int firstVertex = meshes->offsets.find(meshTypes::TRIANGLE)->second;
+	//int vertexCount = meshes->sizes.find(meshTypes::TRIANGLE)->second;
+
+	//for (glm::vec3 position : scene->trianglePositions) {
+	//	glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
+	//	vkUtil::ObjectData objectData;
+	//	objectData.model = model;
+	//	commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(objectData), &objectData);
+	//	commandBuffer.draw(vertexCount, 1, firstVertex, 0);
+	//}
+	
+	int vertexCount = meshes->sizes.find(meshTypes::TRIANGLE)->second;
+	int firstVertex = meshes->offsets.find(meshTypes::TRIANGLE)->second;
 	for (glm::vec3 position : scene->trianglePositions) {
+
 		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
 		vkUtil::ObjectData objectData;
 		objectData.model = model;
-		commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(objectData), &objectData);
-		commandBuffer.draw(3, 1, 0, 0);
+		commandBuffer.pushConstants(
+			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
+			0, sizeof(objectData), &objectData
+		);
+
+		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
+
 	}
-	
+
+	vertexCount = meshes->sizes.find(meshTypes::SQUARE)->second;
+	firstVertex = meshes->offsets.find(meshTypes::SQUARE)->second;
+	for (glm::vec3 position : scene->squarePositions) {
+
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
+		vkUtil::ObjectData objectData;
+		objectData.model = model;
+		commandBuffer.pushConstants(
+			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
+			0, sizeof(objectData), &objectData
+		);
+
+		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
+
+	}
+
+	vertexCount = meshes->sizes.find(meshTypes::STAR)->second;
+	firstVertex = meshes->offsets.find(meshTypes::STAR)->second;
+	for (glm::vec3 position : scene->starPositions) {
+
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
+		vkUtil::ObjectData objectData;
+		objectData.model = model;
+		commandBuffer.pushConstants(
+			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
+			0, sizeof(objectData), &objectData
+		);
+
+		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
+
+	}
 
 	commandBuffer.endRenderPass();
 
@@ -184,6 +237,68 @@ void Engine::record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32
 	catch (vk::SystemError err) {
 		std::cout << "Failed to record command buffer - " << err.what() << std::endl;
 	}
+}
+
+void Engine::make_assets() {
+
+	meshes = new VertexMenagerie();
+
+	meshTypes type = meshTypes::TRIANGLE;
+	std::vector<float> vertices = { {
+		 0.0f, -0.15f, 1.0f, 0.0f, 1.0f,
+		 0.15f, 0.15f, 0.0f, 1.0f, 0.0f,
+		-0.15f, 0.15f, 0.0f, 1.0f, 0.0f
+	} };
+	meshes->consume(type, vertices);
+
+	type = meshTypes::SQUARE;
+	vertices = { {
+		-0.05f,  0.05f, 0.0f, 1.0f, 1.0f,
+		-0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
+		 0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
+		 0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
+		 0.05f,  0.05f, 1.0f, 0.0f, 0.0f,
+		-0.05f,  0.05f, 0.0f, 1.0f, 1.0f
+	} };
+	meshes->consume(type, vertices);
+
+	type = meshTypes::STAR;
+	vertices = { {
+		-0.05f, -0.025f, 1.0f, 0.0f, 1.0f,
+		-0.02f, -0.025f, 0.0f, 0.0f, 1.0f,
+		-0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		-0.02f, -0.025f, 1.0f, 0.0f, 1.0f,
+		  0.0f,  -0.05f, 0.0f, 0.0f, 1.0f,
+		 0.02f, -0.025f, 0.0f, 0.0f, 1.0f,
+		-0.03f,    0.0f, 1.0f, 0.0f, 1.0f,
+		-0.02f, -0.025f, 0.0f, 0.0f, 1.0f,
+		 0.02f, -0.025f, 0.0f, 0.0f, 1.0f,
+		 0.02f, -0.025f, 0.0f, 0.0f, 1.0f,
+		 0.05f, -0.025f, 1.0f, 0.0f, 1.0f,
+		 0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		-0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		 0.02f, -0.025f, 1.0f, 0.0f, 1.0f,
+		 0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		 0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		 0.04f,   0.05f, 0.0f, 0.0f, 1.0f,
+		  0.0f,   0.01f, 1.0f, 0.0f, 1.0f,
+		-0.03f,    0.0f, 0.0f, 1.0f, 1.0f,
+		 0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		  0.0f,   0.01f, 1.0f, 0.0f, 1.0f,
+		-0.03f,    0.0f, 0.0f, 0.0f, 1.0f,
+		  0.0f,   0.01f, 1.0f, 0.0f, 1.0f,
+		-0.04f,   0.05f, 0.0f, 0.0f, 1.0f
+	} };
+	meshes->consume(type, vertices);
+
+	meshes->finalize(device, physicalDevice);
+}
+
+void Engine::prepare_scene(const vk::CommandBuffer& commandBuffer) {
+
+	vk::Buffer vertexBuffers[] = { meshes->vertexBuffer_.buffer };
+	vk::DeviceSize offsets[] = { 0 };
+	commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
 }
 
 void Engine::render(Scene* scene) {
@@ -287,6 +402,8 @@ Engine::~Engine() {
 
 	cleanup_swapchain();
 
+	delete meshes;
+
 	device.destroy();
 
 	instance.destroySurfaceKHR(surface);
@@ -297,5 +414,3 @@ Engine::~Engine() {
 
 	glfwTerminate();
 }
-
-
