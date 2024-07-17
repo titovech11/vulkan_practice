@@ -3,6 +3,8 @@
 #include "frame.h"
 #include "scene.h"
 #include "vertex_menagerie.h"
+#include "descriptors.h"
+
 
 class Engine {
 
@@ -40,6 +42,9 @@ private:
 
 	int maxFramesInFLight, frameNumber;
 
+	vk::DescriptorSetLayout descriptorSetLayout;
+	vk::DescriptorPool descriptorPool;
+
 	VertexMenagerie* meshes;
 
 	int width_;
@@ -52,14 +57,17 @@ private:
 	void make_swapchain();
 	void recreate_swapchain();
 
+	void make_descriptor_set_layout();
 	void make_pipeline();
 
 	void finalize_setup();
 	void make_framebuffers();
-	void make_frame_sync_objects();
+	void make_frame_resources();
 
 	void make_assets();
+
 	void prepare_scene(const vk::CommandBuffer& commandBuffer);
+	void prepare_frame(uint32_t imageIndex, Scene* scene);
 
 	void record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex, Scene* scene);
 

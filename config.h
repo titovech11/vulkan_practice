@@ -17,6 +17,7 @@ struct BufferInput {
 	vk::BufferUsageFlags usage;
 	vk::Device logicalDevice;
 	vk::PhysicalDevice physicalDevice;
+	vk::MemoryPropertyFlags memoryProperties;
 };
 
 struct Buffer {

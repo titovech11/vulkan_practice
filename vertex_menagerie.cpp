@@ -23,19 +23,28 @@ void VertexMenagerie::consume(meshTypes type, const std::vector<float>& vertexDa
 	offset += vertexCount;
 }
 
-void VertexMenagerie::finalize(const vk::Device& logicalDevice, const vk::PhysicalDevice& physicalDevice){
+void VertexMenagerie::finalize(FinalizationChunk finalizationChunk){
 
-	logicalDevice_ = logicalDevice;
-
+	logicalDevice_ = finalizationChunk.logicalDevice;
 	BufferInput inputChunk;
-	inputChunk.logicalDevice = logicalDevice;
-	inputChunk.physicalDevice = physicalDevice;
+	inputChunk.logicalDevice = finalizationChunk.logicalDevice;
+	inputChunk.physicalDevice = finalizationChunk.physicalDevice;
 	inputChunk.size = sizeof(float) * lump.size();
-	inputChunk.usage = vk::BufferUsageFlagBits::eVertexBuffer;
 
+	inputChunk.usage = vk::BufferUsageFlagBits::eTransferSrc;
+	inputChunk.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	Buffer stagingBuffer = vkUtil::createBuffer(inputChunk);
+
+	void* memoryLocation = finalizationChunk.logicalDevice.mapMemory(stagingBuffer.bufferMemory, 0, inputChunk.size);
+	memcpy(memoryLocation, lump.data(), inputChunk.size);
+	finalizationChunk.logicalDevice.unmapMemory(stagingBuffer.bufferMemory);
+
+	inputChunk.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer;
+	inputChunk.memoryProperties =vk::MemoryPropertyFlagBits::eDeviceLocal;
 	vertexBuffer_ = vkUtil::createBuffer(inputChunk);
 
-	void* memoryLocation = logicalDevice.mapMemory(vertexBuffer_.bufferMemory, 0, inputChunk.size);
-	memcpy(memoryLocation, lump.data(), inputChunk.size);
-	logicalDevice.unmapMemory(vertexBuffer_.bufferMemory);
+	vkUtil::copyBuffer(stagingBuffer, vertexBuffer_, inputChunk.size, finalizationChunk.queue, finalizationChunk.commandBuffer);
+
+	logicalDevice_.destroyBuffer(stagingBuffer.buffer);
+	logicalDevice_.freeMemory(stagingBuffer.bufferMemory);
 }

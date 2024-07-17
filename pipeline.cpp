@@ -2,20 +2,15 @@
 #include "shader.h"
 #include "mesh.h"
 
-vk::PipelineLayout vkInit::make_pipeline_layout(const vk::Device& device, const bool debug) {
+vk::PipelineLayout vkInit::make_pipeline_layout(const vk::Device& device, const vk::DescriptorSetLayout& layout, const bool debug) {
 
 	vk::PipelineLayoutCreateInfo layoutInfo;
 	layoutInfo.flags = vk::PipelineLayoutCreateFlags();
-	layoutInfo.setLayoutCount = 0;
 
-	layoutInfo.pushConstantRangeCount = 1;
+	layoutInfo.setLayoutCount = 1;
+	layoutInfo.pSetLayouts = &layout;
 
-	vk::PushConstantRange pushConstantInfo;
-	pushConstantInfo.offset = 0;
-	pushConstantInfo.size = sizeof(vkUtil::ObjectData);
-	pushConstantInfo.stageFlags = vk::ShaderStageFlagBits::eVertex;
-
-	layoutInfo.pPushConstantRanges = &pushConstantInfo;
+	layoutInfo.pushConstantRangeCount = 0;
 
 	try {
 		return device.createPipelineLayout(layoutInfo);
@@ -169,7 +164,7 @@ vkInit::GraphicsPipelineOutBundle vkInit::create_graphics_pipeline(const Graphic
 	if (debug) {
 		std::cout << "Create Pipeline Layout" << std::endl;
 	}
-	vk::PipelineLayout pipelineLayout = make_pipeline_layout(specification.device, debug);
+	vk::PipelineLayout pipelineLayout = make_pipeline_layout(specification.device, specification.descriptorSetLayout, debug);
 	pipelineInfo.layout = pipelineLayout;
 
 	if (debug) {
