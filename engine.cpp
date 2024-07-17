@@ -24,6 +24,7 @@ Engine::Engine(int width, int height, GLFWwindow* window, bool debug) {
 
 	make_device();
 
+	make_descriptor_set_layout();
 	make_pipeline();
 
 	finalize_setup();
@@ -89,7 +90,7 @@ void Engine::recreate_swapchain() {
 	cleanup_swapchain();
 	make_swapchain();
 	make_framebuffers();
-	make_frame_sync_objects();
+	make_frame_resources();
 
 	vkInit::commandBufferInputChunk commandBufferInput = { device, commandPool, swapchainFrames };
 	vkInit::make_frame_command_buffers(commandBufferInput, debugMode);
@@ -112,6 +113,7 @@ void Engine::make_pipeline() {
 	specification.fragmentFilepath = "shaders/fragment.spv";
 	specification.swapchainExtent = swapchainExtent;
 	specification.swapchainImageFormat = swapchainFormat;
+	specification.descriptorSetLayout = descriptorSetLayout;
 
 	vkInit::GraphicsPipelineOutBundle output = vkInit::create_graphics_pipeline(
 		specification, debugMode
@@ -132,16 +134,43 @@ void Engine::finalize_setup() {
 	mainCommandBuffer = vkInit::make_command_buffer(commandBufferInput, debugMode);
 	vkInit::make_frame_command_buffers(commandBufferInput, debugMode);
 	
-	make_frame_sync_objects();
+	make_frame_resources();
 }
 
-void Engine::make_frame_sync_objects() {
+void Engine::make_frame_resources() {
+
+	vkInit::descriptorSetLayoutData bindings;
+	bindings.count = 1;
+	bindings.types.push_back(vk::DescriptorType::eUniformBuffer);
+	descriptorPool = vkInit::make_descriptor_pool(device, static_cast<uint32_t>(swapchainFrames.size()), bindings);
 
 	for (vkUtil::SwapChainFrame& frame : swapchainFrames) {
 		frame.inFlight = vkInit::make_fence(device, debugMode);
 		frame.imageAvailable = vkInit::make_semaphore(device, debugMode);
 		frame.renderFinished = vkInit::make_semaphore(device, debugMode);
+
+		frame.make_descriptor_resources(device, physicalDevice);
+
+		frame.descriptorSet = vkInit::allocate_descriptor_set(device, descriptorPool, descriptorSetLayout);
 	}
+}
+
+void Engine::make_descriptor_set_layout() {
+
+	vkInit::descriptorSetLayoutData bindings;
+	bindings.count = 2;
+
+	bindings.indices.push_back(0);
+	bindings.types.push_back(vk::DescriptorType::eUniformBuffer);
+	bindings.counts.push_back(1);
+	bindings.stages.push_back(vk::ShaderStageFlagBits::eVertex);
+
+    bindings.indices.push_back(1);
+    bindings.types.push_back(vk::DescriptorType::eStorageBuffer);
+    bindings.counts.push_back(1);
+    bindings.stages.push_back(vk::ShaderStageFlagBits::eVertex);
+
+	descriptorSetLayout = vkInit::make_descriptor_set_layout(device, bindings);
 }
 
 void Engine::record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex, Scene* scene) {
@@ -167,67 +196,30 @@ void Engine::record_draw_commands(const vk::CommandBuffer& commandBuffer, uint32
 
 	commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
 
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, swapchainFrames[imageIndex].descriptorSet, nullptr);
+
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
 	prepare_scene(commandBuffer);
-	//int firstVertex = meshes->offsets.find(meshTypes::TRIANGLE)->second;
-	//int vertexCount = meshes->sizes.find(meshTypes::TRIANGLE)->second;
-
-	//for (glm::vec3 position : scene->trianglePositions) {
-	//	glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
-	//	vkUtil::ObjectData objectData;
-	//	objectData.model = model;
-	//	commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(objectData), &objectData);
-	//	commandBuffer.draw(vertexCount, 1, firstVertex, 0);
-	//}
 	
 	int vertexCount = meshes->sizes.find(meshTypes::TRIANGLE)->second;
 	int firstVertex = meshes->offsets.find(meshTypes::TRIANGLE)->second;
-	for (glm::vec3 position : scene->trianglePositions) {
-
-		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
-		vkUtil::ObjectData objectData;
-		objectData.model = model;
-		commandBuffer.pushConstants(
-			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(objectData), &objectData
-		);
-
-		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
-
-	}
+    uint32_t startInstance = 0;
+    uint32_t instanceCount = static_cast<uint32_t>(scene->trianglePositions.size());
+    commandBuffer.draw(vertexCount, instanceCount, firstVertex, startInstance);
+    startInstance += instanceCount;
 
 	vertexCount = meshes->sizes.find(meshTypes::SQUARE)->second;
 	firstVertex = meshes->offsets.find(meshTypes::SQUARE)->second;
-	for (glm::vec3 position : scene->squarePositions) {
-
-		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
-		vkUtil::ObjectData objectData;
-		objectData.model = model;
-		commandBuffer.pushConstants(
-			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(objectData), &objectData
-		);
-
-		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
-
-	}
+    instanceCount = static_cast<uint32_t>(scene->squarePositions.size());
+    commandBuffer.draw(vertexCount, instanceCount, firstVertex, startInstance);
+    startInstance += instanceCount;
 
 	vertexCount = meshes->sizes.find(meshTypes::STAR)->second;
 	firstVertex = meshes->offsets.find(meshTypes::STAR)->second;
-	for (glm::vec3 position : scene->starPositions) {
-
-		glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
-		vkUtil::ObjectData objectData;
-		objectData.model = model;
-		commandBuffer.pushConstants(
-			pipelineLayout, vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(objectData), &objectData
-		);
-
-		commandBuffer.draw(vertexCount, 1, firstVertex, 0);
-
-	}
+    instanceCount = static_cast<uint32_t>(scene->starPositions.size());
+    commandBuffer.draw(vertexCount, instanceCount, firstVertex, startInstance);
+    startInstance += instanceCount;
 
 	commandBuffer.endRenderPass();
 
@@ -253,12 +245,12 @@ void Engine::make_assets() {
 
 	type = meshTypes::SQUARE;
 	vertices = { {
-		-0.05f,  0.05f, 0.0f, 1.0f, 1.0f,
-		-0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
-		 0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
-		 0.05f, -0.05f, 1.0f, 0.0f, 0.0f,
-		 0.05f,  0.05f, 1.0f, 0.0f, 0.0f,
-		-0.05f,  0.05f, 0.0f, 1.0f, 1.0f
+		-0.10f,  0.10f, 0.0f, 1.0f, 1.0f,
+		-0.10f, -0.10f, 1.0f, 0.0f, 0.0f,
+		 0.10f, -0.10f, 1.0f, 0.0f, 0.0f,
+		 0.10f, -0.10f, 1.0f, 0.0f, 0.0f,
+		 0.10f,  0.10f, 1.0f, 0.0f, 0.0f,
+		-0.10f,  0.10f, 0.0f, 1.0f, 1.0f
 	} };
 	meshes->consume(type, vertices);
 
@@ -291,7 +283,60 @@ void Engine::make_assets() {
 	} };
 	meshes->consume(type, vertices);
 
-	meshes->finalize(device, physicalDevice);
+	FinalizationChunk finalizationInfo;
+	finalizationInfo.logicalDevice = device;
+	finalizationInfo.physicalDevice = physicalDevice;
+	finalizationInfo.commandBuffer = mainCommandBuffer;
+	finalizationInfo.queue = graphicsQueue;
+
+	meshes->finalize(finalizationInfo);
+}
+
+void Engine::prepare_frame(uint32_t imageIndex, Scene* scene) {
+
+    float projVar = 0.0f/*static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 0.5))*/;
+    float eyeVar = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 0.05));
+
+    if (imageIndex == 2) {
+        projVar = 2.0f;
+    }
+
+    vkUtil::SwapChainFrame& _frame = swapchainFrames[imageIndex];
+
+	glm::vec3 eye = { 1.0f, 0.0f, -1.0f };
+	glm::vec3 center = { 0.0f, 0.0f, 0.0f };
+	glm::vec3 up = { 0.0f, 0.0f, -1.0f };
+	glm::mat4 view = glm::lookAt(eye, center, up);
+
+	glm::mat4 projection = glm::perspective(
+		glm::radians(60.0f + projVar),
+		static_cast<float>(swapchainExtent.width) / static_cast<float>(swapchainExtent.height), 
+		0.1f, 10.0f
+	);
+
+	projection[1][1] *= -1;
+
+    _frame.cameraData.view = view;
+    _frame.cameraData.projection = projection;
+    _frame.cameraData.viewProjection = projection * view;
+
+	//swapchainFrames[imageIndex].cameraData.viewProjection = glm::mat4(1);
+
+	memcpy(_frame.cameraDataWriteLOcation, &(_frame.cameraData), sizeof(vkUtil::UniformBufferObj));
+
+    size_t i = 0;
+    for (glm::vec3& position : scene->trianglePositions) {
+        _frame.modelTransforms[i++] = glm::translate(glm::mat4(1.0f), position);
+    }
+    for (glm::vec3& position : scene->squarePositions) {
+        _frame.modelTransforms[i++] = glm::translate(glm::mat4(1.0f), position);
+    }
+    for (glm::vec3& position : scene->starPositions) {
+        _frame.modelTransforms[i++] = glm::translate(glm::mat4(1.0f), position);
+    }
+    memcpy(_frame.modelBufferWriteLocation, _frame.modelTransforms.data(), i * sizeof(glm::mat4));
+
+    _frame.write_descriptor_set(device);
 }
 
 void Engine::prepare_scene(const vk::CommandBuffer& commandBuffer) {
@@ -319,6 +364,8 @@ void Engine::render(Scene* scene) {
 	vk::CommandBuffer commandBuffer = swapchainFrames[frameNumber].commandBuffer;
 
 	commandBuffer.reset();
+
+	prepare_frame(imageIndex, scene);
 
 	record_draw_commands(commandBuffer, imageIndex, scene);
 
@@ -381,9 +428,19 @@ void Engine::cleanup_swapchain() {
 		device.destroyFence(frame.inFlight);
 		device.destroySemaphore(frame.imageAvailable);
 		device.destroySemaphore(frame.renderFinished);
+
+		device.unmapMemory(frame.cameraDataBuffer.bufferMemory);
+		device.freeMemory(frame.cameraDataBuffer.bufferMemory);
+		device.destroyBuffer(frame.cameraDataBuffer.buffer);
+
+        device.unmapMemory(frame.modelBuffer.bufferMemory);
+        device.freeMemory(frame.modelBuffer.bufferMemory);
+        device.destroyBuffer(frame.modelBuffer.buffer);
 	}
 
 	device.destroySwapchainKHR(swapchain);
+
+	device.destroyDescriptorPool(descriptorPool);
 }
 
 Engine::~Engine() {
@@ -401,6 +458,8 @@ Engine::~Engine() {
 	device.destroyRenderPass(renderpass);
 
 	cleanup_swapchain();
+
+	device.destroyDescriptorSetLayout(descriptorSetLayout);
 
 	delete meshes;
 
